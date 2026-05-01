@@ -39,4 +39,10 @@ Nebo libovolný statický server v kořeni projektu.
 
 ## GitHub Pages
 
-V nastavení repozitáře: **Settings → Pages → Build and deployment → Deploy from branch**, větev např. `main`, složka `/ (root)`. Kořen musí obsahovat `index.html`.
+Repozitář obsahuje workflow **[Deploy GitHub Pages](.github/workflows/pages.yml)** — po každém pushi na `main` poběží job v záložce **Actions**.
+
+1. Na GitHubu: **Settings → Pages → Build and deployment**.
+2. U **Source** zvol **GitHub Actions** (ne „Deploy from branch“, pokud tam něco máš — dvě zdroje nejdou kombinovat smysluplně).
+3. Pushni změny na `main`; v **Actions** uvidíš běh „Deploy GitHub Pages“. Po zeleném jobu Pages nabídnou URL typu `https://<uživatel>.github.io/graf_pohyb/`.
+
+Bez workflow by záložka Actions zůstala prázdná — projekt nemá CI příkazy, jen statické soubory.
