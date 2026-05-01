@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Graf pohybu</title>
+  <style>
+    :root {
+      --axis: #1e6bb8;
+      --grid: rgba(30, 107, 184, 0.22);
+      --track: #111;
+      --bg: #f4f7fb;
+      --panel: #fff;
+      --accent: #1e6bb8;
+      --text: #1a1a1a;
+      --muted: #5c6370;
+      --handle: #1e6bb8;
+      --square: #c8ccd4;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 0 0 16px;
+    }
+
+    .chart-wrap {
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 16px 16px 8px;
+      border: 1px solid #dde3ec;
+    }
+
+    .chart-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      cursor: crosshair;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .chart-svg text {
+      -webkit-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .track-section {
+      margin-top: 20px;
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid #dde3ec;
+      overflow: hidden;
+    }
+
+    /**
+     * ViewBox 600×96 — druhý cyklista pod hlavní černou čárou.
+     */
+    .track-section > .track-svg {
+      display: block;
+      width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+      height: auto;
+      max-width: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .track-section > .track-svg text {
+      -webkit-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .track-section .cyclist-jet {
+      animation: cyclist-jet-pulse 0.14s ease-in-out infinite;
+    }
+
+    @keyframes cyclist-jet-pulse {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      45% {
+        opacity: 0.76;
+      }
+      72% {
+        opacity: 0.93;
+      }
+    }
+
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .controls-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    button {
+      font: inherit;
+      padding: 10px 22px;
+      border-radius: 6px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      filter: brightness(1.05);
+    }
+
+    button.secondary {
+      background: var(--panel);
+      color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: none;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      font-size: 1.25rem;
+      letter-spacing: 0.06em;
+      padding: 10px 18px;
+      border-radius: 6px;
+      border: 1px solid #dde3ec;
+      background: #fafbfd;
+      min-width: 120px;
+      text-align: center;
+    }
+
+    .dual-check,
+    .graph-target-wrap label {
+      font-size: 0.875rem;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .dual-check input,
+    .graph-target-wrap input {
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .graph-target-wrap {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+      margin-left: 4px;
+      padding-left: 14px;
+      border-left: 1px solid #dde3ec;
+    }
+
+    .graph-target-wrap input:disabled {
+      cursor: not-allowed;
+    }
+
+    .help-dialog {
+      max-width: min(520px, calc(100vw - 48px));
+      padding: 0;
+      border: 1px solid #dde3ec;
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+    }
+
+    .help-dialog::backdrop {
+      background: rgba(26, 26, 26, 0.35);
+    }
+
+    .help-dialog-inner {
+      padding: 20px 22px 22px;
+    }
+
+    .help-dialog-inner h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .help-dialog-inner p {
+      margin: 0 0 18px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .help-dialog-inner > button {
+      margin-top: 16px;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Graf pohybu</h1>
+
+    <div class="chart-wrap">
+      <svg id="chart" class="chart-svg" viewBox="0 0 600 340" aria-label="Graf vzdálenost–čas"></svg>
+    </div>
+
+    <div class="track-section">
+      <svg id="track" class="track-svg" viewBox="0 0 600 96" aria-label="Dráha"></svg>
+    </div>
+
+    <div class="controls">
+      <div class="controls-buttons">
+        <button type="button" id="btnRun">Spustit</button>
+        <button type="button" id="btnReset" class="secondary">Reset</button>
+        <label class="dual-check">
+          <input type="checkbox" id="chkDualGraph" />
+          Druhý graf
+        </label>
+        <span id="graphTargetWrap" class="graph-target-wrap" hidden>
+          <span class="graph-target-label">Upravovat</span>
+          <label><input type="radio" name="graphTarget" value="1" checked disabled /> graf 1</label>
+          <label><input type="radio" name="graphTarget" value="2" disabled /> graf 2</label>
+        </span>
+        <button type="button" id="btnHelp" class="secondary">Nápověda</button>
+      </div>
+      <span class="timer" id="timer" aria-live="polite">00 : 00</span>
+    </div>
+  </div>
+
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpDialogTitle">
+    <div class="help-dialog-inner">
+      <h2 id="helpDialogTitle">Tvorba grafu</h2>
+      <p>
+        Kliknutím přidej bod grafu. Body je možné posunovat. Dvojklikem bod zrušíš.
+      </p>
+      <button type="button" id="helpDialogClose" class="secondary">Zavřít</button>
+    </div>
+  </dialog>
+
+  <script>
+(function () {
+  const T_MAX = 12;
+  const S_MAX = 8;
+  /** Jedna dílka na vodorovné časové ose [s] */
+  const TIME_AXIS_STEP = 1;
+
+  const chartEl = document.getElementById("chart");
+  const trackEl = document.getElementById("track");
+  const btnRun = document.getElementById("btnRun");
+  const btnReset = document.getElementById("btnReset");
+  const btnHelp = document.getElementById("btnHelp");
+  const chkDualGraph = document.getElementById("chkDualGraph");
+  const graphTargetWrap = document.getElementById("graphTargetWrap");
+  const helpDialog = document.getElementById("helpDialog");
+  const helpDialogClose = document.getElementById("helpDialogClose");
+  const timerEl = document.getElementById("timer");
+
+  /** Plot margins inside SVG viewBox */
+  const ml = 52;
+  const mr = 28;
+  const mt = 28;
+  const mb = 44;
+  const W = 600;
+  const H = 340;
+  const pw = W - ml - mr;
+  const ph = H - mt - mb;
+
+  function tToX(t) {
+    return ml + (t / T_MAX) * pw;
+  }
+
+  function sToY(s) {
+    return mt + ph - (s / S_MAX) * ph;
+  }
+
+  function xToT(x) {
+    const t = ((x - ml) / pw) * T_MAX;
+    return Math.min(T_MAX, Math.max(0, t));
+  }
+
+  function yToS(y) {
+    const s = ((mt + ph - y) / ph) * S_MAX;
+    return Math.min(S_MAX, Math.max(0, s));
+  }
+
+  /**
+   * Dva nezávislé grafy (sdílený počátek [0,0]).
+   * @type {{ t: number, s: number }[]}
+   */
+  let points = [];
+  let points2 = [];
+
+  /** Zobrazení a simulace druhého grafu (checkbox). */
+  let dualGraph = false;
+
+  function syncGraphTargetRadios() {
+    document.querySelectorAll('input[name="graphTarget"]').forEach(function (el) {
+      el.disabled = !dualGraph;
+    });
+  }
+
+  let running = false;
+  let simT = 0;
+  let lastFrame = 0;
+  let raf = 0;
+
+  function sortPointsArr(arr) {
+    if (!arr.length) return;
+    arr.sort((a, b) => a.t - b.t || a.s - b.s);
+    const eps = 0.03;
+    for (let i = 1; i < arr.length; i++) {
+      const lo = arr[i - 1].t + eps;
+      if (arr[i].t < lo) arr[i].t = lo;
+      arr[i].t = Math.min(T_MAX, arr[i].t);
+      arr[i].s = Math.min(S_MAX, Math.max(0, arr[i].s));
+    }
+    if (arr.length && arr[0].t < eps) arr[0].t = eps;
+  }
+
+  /** Počátek [0,0] + uživatelské body daného grafu. */
+  function verticesFrom(arr) {
+    sortPointsArr(arr);
+    if (arr.length === 0) return [];
+    return [{ t: 0, s: 0 }].concat(arr);
+  }
+
+  /** Piecewise linear s(t) pro zadaný graf. */
+  function distanceAtFrom(arr, t) {
+    const v = verticesFrom(arr);
+    if (v.length === 0) return 0;
+    if (t <= v[0].t) return v[0].s;
+    const last = v[v.length - 1];
+    if (t >= last.t) return last.s;
+    for (let i = 0; i < v.length - 1; i++) {
+      const a = v[i];
+      const b = v[i + 1];
+      if (t >= a.t && t <= b.t) {
+        const u = (t - a.t) / (b.t - a.t || 1e-9);
+        return a.s + u * (b.s - a.s);
+      }
+    }
+    return last.s;
+  }
+
+  function simEndTimeFrom(arr) {
+    const v = verticesFrom(arr);
+    if (v.length < 2) return 0;
+    return Math.min(T_MAX, v[v.length - 1].t);
+  }
+
+  function simEndTime() {
+    const e1 = simEndTimeFrom(points);
+    if (!dualGraph) return e1;
+    return Math.max(e1, simEndTimeFrom(points2));
+  }
+
+  /** Okamžitá rychlost z grafu v „zobrazených“ m/s (osa délky ×10). */
+  const LENGTH_DISPLAY_MULT = 10;
+  const JET_SPEED_THRESHOLD_MS = 14;
+
+  /** ds/dt ve vlastních jednotkách grafu (ne ×10). Pro t ≥ konec daného grafu → derivace posledního úseku. */
+  function derivativeSignedAtFrom(arr, t) {
+    const v = verticesFrom(arr);
+    if (v.length < 2) return 0;
+    const last = v[v.length - 1];
+    if (t >= last.t) {
+      const a = v[v.length - 2];
+      const b = last;
+      const dt = b.t - a.t;
+      if (dt <= 1e-9) return 0;
+      return (b.s - a.s) / dt;
+    }
+    if (t <= v[0].t) {
+      const dt = v[1].t - v[0].t;
+      if (dt <= 1e-9) return 0;
+      return (v[1].s - v[0].s) / dt;
+    }
+    for (let i = 0; i < v.length - 1; i++) {
+      const a = v[i];
+      const b = v[i + 1];
+      if (t >= a.t && t <= b.t) {
+        const dt = b.t - a.t;
+        if (dt <= 1e-9) return 0;
+        return (b.s - a.s) / dt;
+      }
+    }
+    return 0;
+  }
+
+  function speedDisplayAtFrom(arr, t) {
+    const v = verticesFrom(arr);
+    if (v.length < 2) return 0;
+    if (t >= v[v.length - 1].t) return 0;
+    return Math.abs(derivativeSignedAtFrom(arr, t)) * LENGTH_DISPLAY_MULT;
+  }
+
+  function buildJetGroup(NS) {
+    const j = document.createElementNS(NS, "g");
+    j.setAttribute("class", "cyclist-jet");
+    j.setAttribute("pointer-events", "none");
+    j.setAttribute("transform", "translate(13,27.5)");
+
+    const outer = document.createElementNS(NS, "path");
+    outer.setAttribute("d", "M0,-7 L-22,-2.5 L-26,0 L-22,2.5 L0,7 Z");
+    outer.setAttribute("fill", "#ff6b35");
+
+    const mid = document.createElementNS(NS, "path");
+    mid.setAttribute("d", "M0,-4 L-15,-1.2 L-18,0 L-15,1.2 L0,4 Z");
+    mid.setAttribute("fill", "#ff9800");
+
+    const inner = document.createElementNS(NS, "path");
+    inner.setAttribute("d", "M0,-2 L-10,-0.5 L-12,0 L-10,0.5 L0,2 Z");
+    inner.setAttribute("fill", "#ffeb3b");
+
+    const core = document.createElementNS(NS, "path");
+    core.setAttribute("d", "M0,-1 L-6,0 L0,1 Z");
+    core.setAttribute("fill", "#fff9c4");
+
+    j.appendChild(outer);
+    j.appendChild(mid);
+    j.appendChild(inner);
+    j.appendChild(core);
+    return j;
+  }
+
+  function syncJetPropulsion(riderG, ptsArr) {
+    if (!riderG) return;
+    const wantJet =
+      (running || simT > 0) &&
+      simEndTimeFrom(ptsArr) > 0 &&
+      speedDisplayAtFrom(ptsArr, simT) > JET_SPEED_THRESHOLD_MS;
+    const jet = riderG.querySelector(".cyclist-jet");
+    if (!wantJet) {
+      if (jet) jet.remove();
+      return;
+    }
+    if (!jet) {
+      riderG.insertBefore(buildJetGroup("http://www.w3.org/2000/svg"), riderG.firstChild);
+    }
+  }
+
+  function updateRunButton() {
+    const ok = points.length >= 1 || (dualGraph && points2.length >= 1);
+    btnRun.disabled = !ok;
+  }
+
+  /** Červený bod na grafu během / po simulaci – (t, s) = časomíra + dráha z grafu. */
+  function chartTimeIndicatorVisible() {
+    return (running || simT > 0) && simEndTime() > 0;
+  }
+
+  function chartTimeIndicatorTSFor(arr, tDraw) {
+    return { t: tDraw, s: distanceAtFrom(arr, tDraw) };
+  }
+
+  function updateChartTimeIndicator() {
+    const dot = chartEl.querySelector("#chart-time-indicator");
+    const dot2 = chartEl.querySelector("#chart-time-indicator-2");
+
+    if (!chartTimeIndicatorVisible()) {
+      if (dot) dot.remove();
+      if (dot2) dot2.remove();
+      return;
+    }
+
+    const endT = simEndTime();
+    const tDraw = Math.min(Math.max(0, simT), endT);
+
+    function placeIndicator(el, id, fill, stroke, pair) {
+      let d = el;
+      if (!d) {
+        d = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        d.setAttribute("id", id);
+        d.setAttribute("r", "6");
+        d.setAttribute("fill", fill);
+        d.setAttribute("stroke", stroke);
+        d.setAttribute("stroke-width", "2");
+        d.setAttribute("pointer-events", "none");
+        chartEl.appendChild(d);
+      }
+      d.setAttribute("cx", tToX(pair.t));
+      d.setAttribute("cy", sToY(pair.s));
+    }
+
+    if (simEndTimeFrom(points) > 0) {
+      placeIndicator(
+        dot,
+        "chart-time-indicator",
+        "#d92222",
+        "#ffffff",
+        chartTimeIndicatorTSFor(points, tDraw)
+      );
+    } else if (dot) {
+      dot.remove();
+    }
+
+    if (dualGraph && simEndTimeFrom(points2) > 0) {
+      placeIndicator(
+        dot2,
+        "chart-time-indicator-2",
+        "#1565c0",
+        "#ffffff",
+        chartTimeIndicatorTSFor(points2, tDraw)
+      );
+    } else if (dot2) {
+      dot2.remove();
+    }
+  }
+
+  function formatTimer(t) {
+    const sec = Math.floor(t);
+    const frac = Math.floor((t - sec) * 100);
+    const a = String(sec).padStart(2, "0");
+    const b = String(frac).padStart(2, "0");
+    return a + " : " + b;
+  }
+
+  function buildDefs(svg) {
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML =
+      '<marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">' +
+      '<path d="M0,0 L8,4 L0,8 Z" fill="#1e6bb8" /></marker>';
+    svg.appendChild(defs);
+  }
+
+  function drawGrid(svg) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "grid");
+    g.setAttribute("pointer-events", "none");
+
+    for (let t = 0; t <= T_MAX; t += TIME_AXIS_STEP) {
+      const x = tToX(t);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x);
+      line.setAttribute("x2", x);
+      line.setAttribute("y1", mt);
+      line.setAttribute("y2", mt + ph);
+      line.setAttribute("stroke", "var(--grid)");
+      line.setAttribute("stroke-width", "1");
+      line.setAttribute("stroke-dasharray", "3 5");
+      g.appendChild(line);
+    }
+
+    for (let si = 0; si <= S_MAX; si++) {
+      const y = sToY(si);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", ml);
+      line.setAttribute("x2", ml + pw);
+      line.setAttribute("y1", y);
+      line.setAttribute("y2", y);
+      line.setAttribute("stroke", "var(--grid)");
+      line.setAttribute("stroke-width", "1");
+      line.setAttribute("stroke-dasharray", "3 5");
+      g.appendChild(line);
+    }
+
+    svg.appendChild(g);
+  }
+
+  function drawAxes(svg) {
+    const axisColor = "#1e6bb8";
+    const ax = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    ax.setAttribute("pointer-events", "none");
+
+    const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    yAxis.setAttribute("x1", ml);
+    yAxis.setAttribute("y1", mt + ph);
+    yAxis.setAttribute("x2", ml);
+    yAxis.setAttribute("y2", mt - 4);
+    yAxis.setAttribute("stroke", axisColor);
+    yAxis.setAttribute("stroke-width", "2");
+    yAxis.setAttribute("marker-end", "url(#arrowBlue)");
+    ax.appendChild(yAxis);
+
+    const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    xAxis.setAttribute("x1", ml);
+    xAxis.setAttribute("y1", mt + ph);
+    xAxis.setAttribute("x2", ml + pw + 6);
+    xAxis.setAttribute("y2", mt + ph);
+    xAxis.setAttribute("stroke", axisColor);
+    xAxis.setAttribute("stroke-width", "2");
+    xAxis.setAttribute("marker-end", "url(#arrowBlue)");
+    ax.appendChild(xAxis);
+
+    const xl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    xl.setAttribute("x", ml + pw / 2);
+    xl.setAttribute("y", H - 12);
+    xl.setAttribute("text-anchor", "middle");
+    xl.setAttribute("fill", axisColor);
+    xl.setAttribute("font-size", "14");
+    xl.textContent = "Čas";
+    ax.appendChild(xl);
+
+    const yl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    yl.setAttribute("x", 14);
+    yl.setAttribute("y", mt + ph / 2);
+    yl.setAttribute("fill", axisColor);
+    yl.setAttribute("font-size", "14");
+    yl.setAttribute("transform", "rotate(-90 " + 14 + " " + (mt + ph / 2) + ")");
+    yl.textContent = "Vzdálenost";
+    ax.appendChild(yl);
+
+    for (let t = 0; t <= T_MAX; t += TIME_AXIS_STEP) {
+      const x = tToX(t);
+      const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      tick.setAttribute("x1", x);
+      tick.setAttribute("x2", x);
+      tick.setAttribute("y1", mt + ph);
+      tick.setAttribute("y2", mt + ph + 6);
+      tick.setAttribute("stroke", axisColor);
+      ax.appendChild(tick);
+      const lab = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lab.setAttribute("x", x);
+      lab.setAttribute("y", mt + ph + 22);
+      lab.setAttribute("text-anchor", "middle");
+      lab.setAttribute("font-size", "11");
+      lab.setAttribute("fill", "#444");
+      lab.textContent = String(t);
+      ax.appendChild(lab);
+    }
+
+    for (let si = 0; si <= S_MAX; si++) {
+      const y = sToY(si);
+      const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      tick.setAttribute("x1", ml - 6);
+      tick.setAttribute("x2", ml);
+      tick.setAttribute("y1", y);
+      tick.setAttribute("y2", y);
+      tick.setAttribute("stroke", axisColor);
+      ax.appendChild(tick);
+      const lab = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lab.setAttribute("x", ml - 10);
+      lab.setAttribute("y", y + 4);
+      lab.setAttribute("text-anchor", "end");
+      lab.setAttribute("font-size", "11");
+      lab.setAttribute("fill", "#444");
+      lab.textContent = si * 10 + " m";
+      ax.appendChild(lab);
+    }
+
+    svg.appendChild(ax);
+  }
+
+  let handlesLayer = null;
+
+  /** Po úpravě grafu jezdci zůstanou v počátku dráhy (jen ve stavu bez běžící simulace). */
+  function resetPlaybackToStartIfPaused() {
+    if (running) return;
+    simT = 0;
+    lastFrame = 0;
+    timerEl.textContent = formatTimer(0);
+  }
+
+  function redrawChart() {
+    resetPlaybackToStartIfPaused();
+    chartEl.innerHTML = "";
+    buildDefs(chartEl);
+    drawGrid(chartEl);
+
+    drawAxes(chartEl);
+
+    sortPointsArr(points);
+    sortPointsArr(points2);
+    const v1 = verticesFrom(points);
+    const d1 =
+      v1.length >= 2
+        ? v1.map((p) => tToX(p.t).toFixed(2) + "," + sToY(p.s).toFixed(2)).join(" ")
+        : "";
+    const v2dual = dualGraph ? verticesFrom(points2) : [];
+    const d2 =
+      dualGraph && v2dual.length >= 2
+        ? v2dual.map((p) => tToX(p.t).toFixed(2) + "," + sToY(p.s).toFixed(2)).join(" ")
+        : "";
+
+    /** Pod kolečky – klikací plocha. Viditelná výplň skoro nulová – Safari často nebere úplně průhledné plochy. */
+    const plotHit = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    plotHit.setAttribute("id", "plot-hit-layer");
+    plotHit.setAttribute("x", ml);
+    plotHit.setAttribute("y", mt);
+    plotHit.setAttribute("width", pw);
+    plotHit.setAttribute("height", ph);
+    plotHit.setAttribute("fill", "#ffffff");
+    plotHit.setAttribute("fill-opacity", "0.003");
+    plotHit.setAttribute("stroke", "none");
+    plotHit.setAttribute("pointer-events", "all");
+    chartEl.appendChild(plotHit);
+
+    bindPlotHit(plotHit);
+
+    const editGraph = dualGraph ? getActiveGraph() : 1;
+
+    handlesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    handlesLayer.setAttribute("class", "handles");
+    if (points.length > 0 || points2.length > 0) {
+      const origin = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      origin.setAttribute("cx", tToX(0));
+      origin.setAttribute("cy", sToY(0));
+      origin.setAttribute("r", "7");
+      origin.setAttribute("fill", "#fff");
+      origin.setAttribute("stroke", "#444");
+      origin.setAttribute("stroke-width", "2");
+      origin.setAttribute("opacity", "0.95");
+      origin.style.cursor = "default";
+      origin.style.pointerEvents = "none";
+      origin.dataset.role = "origin";
+      handlesLayer.appendChild(origin);
+    }
+    points.forEach(function (p, idx) {
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("cx", tToX(p.t));
+      c.setAttribute("cy", sToY(p.s));
+      c.setAttribute("r", "7");
+      c.setAttribute("fill", "#fff");
+      c.setAttribute("stroke", "#1e6bb8");
+      c.setAttribute("stroke-width", "2");
+      c.style.cursor = dualGraph && editGraph !== 1 ? "default" : "grab";
+      c.style.pointerEvents = dualGraph && editGraph !== 1 ? "none" : "auto";
+      c.setAttribute("data-index", String(idx));
+      c.setAttribute("data-graph", "1");
+      c.dataset.index = String(idx);
+      c.dataset.graph = "1";
+      bindUserCircleDrag(c, idx, 1);
+      handlesLayer.appendChild(c);
+    });
+    if (dualGraph) {
+      points2.forEach(function (p, idx) {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", tToX(p.t));
+        c.setAttribute("cy", sToY(p.s));
+        c.setAttribute("r", "7");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#2e7d32");
+        c.setAttribute("stroke-width", "2");
+        c.style.cursor = editGraph !== 2 ? "default" : "grab";
+        c.style.pointerEvents = editGraph !== 2 ? "none" : "auto";
+        c.setAttribute("data-index", String(idx));
+        c.setAttribute("data-graph", "2");
+        c.dataset.index = String(idx);
+        c.dataset.graph = "2";
+        bindUserCircleDrag(c, idx, 2);
+        handlesLayer.appendChild(c);
+      });
+    }
+    chartEl.appendChild(handlesLayer);
+
+    /** Čára nad kolečky → graf vizuálně „protíná“ středy bodů. */
+    if (d1) {
+      const pl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      pl.setAttribute("fill", "none");
+      pl.setAttribute("stroke", "#111");
+      pl.setAttribute("stroke-width", "2.5");
+      pl.setAttribute("stroke-linejoin", "round");
+      pl.setAttribute("stroke-linecap", "round");
+      pl.setAttribute("points", d1);
+      pl.setAttribute("pointer-events", "none");
+      chartEl.appendChild(pl);
+    }
+    if (d2) {
+      const pl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      pl.setAttribute("fill", "none");
+      pl.setAttribute("stroke", "#1565c0");
+      pl.setAttribute("stroke-width", "2.5");
+      pl.setAttribute("stroke-linejoin", "round");
+      pl.setAttribute("stroke-linecap", "round");
+      pl.setAttribute("points", d2);
+      pl.setAttribute("pointer-events", "none");
+      chartEl.appendChild(pl);
+    }
+
+    updateChartTimeIndicator();
+    updateRunButton();
+    drawTrack();
+  }
+
+  const TW = 600;
+  const TH = 96;
+  /** Hlavní čára dráhy (první cyklista „na“ čáře). */
+  const TRACK_LINE_Y = 38;
+  /** Druhý cyklista — posun dolů pod černou linku. */
+  const TRACK_RIDER2_DY = 28;
+  /** Šířka figurky cyklisty ve vlastních souřadnicích (≈ polovina pro centrovaní na dráze). */
+  const TRACK_RIDER_W = 54;
+  const TRACK_RIDER_HALF_W = TRACK_RIDER_W / 2;
+  const TRACK_X_MARGIN = TRACK_RIDER_HALF_W + 10;
+
+  function trackInnerWidth() {
+    return TW - 2 * TRACK_X_MARGIN;
+  }
+
+  function trackXFromDist(dist) {
+    return TRACK_X_MARGIN + (dist / S_MAX) * trackInnerWidth();
+  }
+
+  /** Jednoduchý cyklista z profilu (nápodobně obrázku): černé pozadí nepoužíváme — světlý panel. */
+  function createTrackRiderGroup(cx, ptsArr) {
+    const NS = "http://www.w3.org/2000/svg";
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "track-rider");
+    g.setAttribute("pointer-events", "none");
+    g.setAttribute("transform", "translate(" + (cx - TRACK_RIDER_HALF_W) + ",0)");
+
+    function wheel(wx, wy, wr) {
+      const c = document.createElementNS(NS, "circle");
+      c.setAttribute("cx", String(wx));
+      c.setAttribute("cy", String(wy));
+      c.setAttribute("r", String(wr));
+      c.setAttribute("fill", "#8b929c");
+      c.setAttribute("stroke", "#111");
+      c.setAttribute("stroke-width", "1.25");
+      return c;
+    }
+
+    function spoke(wx, wy, wr) {
+      const ln = document.createElementNS(NS, "line");
+      ln.setAttribute("x1", String(wx - wr));
+      ln.setAttribute("y1", String(wy));
+      ln.setAttribute("x2", String(wx + wr));
+      ln.setAttribute("y2", String(wy));
+      ln.setAttribute("stroke", "#222");
+      ln.setAttribute("stroke-width", "0.75");
+      return ln;
+    }
+
+    const wr = 8.5;
+    const rCx = 14;
+    const fCx = 41;
+    const wCy = 27.5;
+
+    const frame = document.createElementNS(NS, "path");
+    frame.setAttribute(
+      "d",
+      "M14 27.5 L23 15 L38 12 L41 27.5 Z"
+    );
+    frame.setAttribute("fill", "#e8487d");
+    frame.setAttribute("stroke", "#c73668");
+    frame.setAttribute("stroke-width", "0.8");
+    frame.setAttribute("stroke-linejoin", "round");
+    g.appendChild(frame);
+
+    const drive = document.createElementNS(NS, "ellipse");
+    drive.setAttribute("cx", "24");
+    drive.setAttribute("cy", "23");
+    drive.setAttribute("rx", "7");
+    drive.setAttribute("ry", "4.5");
+    drive.setAttribute("fill", "#111");
+    g.appendChild(drive);
+
+    const body = document.createElementNS(NS, "path");
+    body.setAttribute(
+      "d",
+      "M26 7 Q33 5 38 9 Q43 13 43 19 Q42 24 36 26 Q28 28 21 25 Q17 21 18 14 Q19 9 26 7 Z"
+    );
+    body.setAttribute("fill", "#ffffff");
+    body.setAttribute("stroke", "#111");
+    body.setAttribute("stroke-width", "0.6");
+    g.appendChild(body);
+
+    const helmet = document.createElementNS(NS, "ellipse");
+    helmet.setAttribute("cx", "37");
+    helmet.setAttribute("cy", "8");
+    helmet.setAttribute("rx", "6");
+    helmet.setAttribute("ry", "4.5");
+    helmet.setAttribute("fill", "#e8487d");
+    helmet.setAttribute("stroke", "#111");
+    helmet.setAttribute("stroke-width", "0.5");
+    helmet.setAttribute("transform", "rotate(-12 37 8)");
+    g.appendChild(helmet);
+
+    const bars = document.createElementNS(NS, "path");
+    bars.setAttribute("d", "M38 12 L46 9 M39 11 L45 8");
+    bars.setAttribute("stroke", "#111");
+    bars.setAttribute("stroke-width", "1.6");
+    bars.setAttribute("stroke-linecap", "round");
+    bars.setAttribute("fill", "none");
+    g.appendChild(bars);
+
+    const seat = document.createElementNS(NS, "path");
+    seat.setAttribute("d", "M22 15 L19 14 Q18 13 19 12 L23 13 Z");
+    seat.setAttribute("fill", "#111");
+    g.appendChild(seat);
+
+    g.appendChild(wheel(rCx, wCy, wr));
+    g.appendChild(wheel(fCx, wCy, wr));
+    g.appendChild(spoke(rCx, wCy, wr * 0.85));
+    g.appendChild(spoke(fCx, wCy, wr * 0.85));
+    const sp2 = spoke(rCx, wCy, wr * 0.85);
+    sp2.setAttribute("transform", "rotate(90 " + rCx + " " + wCy + ")");
+    const sp3 = spoke(fCx, wCy, wr * 0.85);
+    sp3.setAttribute("transform", "rotate(90 " + fCx + " " + wCy + ")");
+    g.appendChild(sp2);
+    g.appendChild(sp3);
+
+    syncJetPropulsion(g, ptsArr);
+    return g;
+  }
+
+  let trackRider = null;
+  let trackRider2 = null;
+  let trackLine = null;
+
+  function drawTrack() {
+    trackEl.innerHTML = "";
+    trackRider2 = null;
+    const inner = trackInnerWidth();
+    const ly = String(TRACK_LINE_Y);
+
+    trackLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    trackLine.setAttribute("x1", String(TRACK_X_MARGIN));
+    trackLine.setAttribute("y1", ly);
+    trackLine.setAttribute("x2", String(TW - TRACK_X_MARGIN));
+    trackLine.setAttribute("y2", ly);
+    trackLine.setAttribute("stroke", "#111");
+    trackLine.setAttribute("stroke-width", "3");
+    trackEl.appendChild(trackLine);
+
+    for (let si = 0; si <= S_MAX; si++) {
+      const x = TRACK_X_MARGIN + (si / S_MAX) * inner;
+      const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      tick.setAttribute("x1", x);
+      tick.setAttribute("x2", x);
+      tick.setAttribute("y1", ly);
+      tick.setAttribute("y2", String(TRACK_LINE_Y + 10));
+      tick.setAttribute("stroke", "#444");
+      trackEl.appendChild(tick);
+      const lab = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lab.setAttribute("font-size", "11");
+      lab.setAttribute("fill", "#444");
+      lab.textContent = si * 10 + " m";
+      if (si === 0) {
+        lab.setAttribute("x", String(TRACK_X_MARGIN + 2));
+        lab.setAttribute("text-anchor", "start");
+      } else if (si === S_MAX) {
+        lab.setAttribute("x", String(TW - TRACK_X_MARGIN - 2));
+        lab.setAttribute("text-anchor", "end");
+      } else {
+        lab.setAttribute("x", x);
+        lab.setAttribute("text-anchor", "middle");
+      }
+      lab.setAttribute("y", String(TH - 8));
+      trackEl.appendChild(lab);
+    }
+
+    const t0 = running || simT > 0 ? simT : 0;
+    const dist1 = distanceAtFrom(points, t0);
+    const cx1 = trackXFromDist(dist1);
+    trackRider = createTrackRiderGroup(cx1, points);
+    trackEl.appendChild(trackRider);
+
+    if (dualGraph) {
+      const dist2 = distanceAtFrom(points2, t0);
+      const cx2 = trackXFromDist(dist2);
+      trackRider2 = createTrackRiderGroup(cx2, points2);
+      trackEl.appendChild(trackRider2);
+    }
+
+    updateTrackRiderPosition();
+  }
+
+  function updateTrackRiderPosition() {
+    if (trackRider) {
+      const cx = trackXFromDist(distanceAtFrom(points, simT));
+      const backward = derivativeSignedAtFrom(points, simT) < 0;
+      const tr = backward
+        ? "translate(" + cx + ",0) scale(-1,1) translate(" + -TRACK_RIDER_HALF_W + ",0)"
+        : "translate(" + (cx - TRACK_RIDER_HALF_W) + ",0)";
+      trackRider.setAttribute("transform", tr);
+      syncJetPropulsion(trackRider, points);
+    }
+    if (dualGraph && trackRider2) {
+      const cx = trackXFromDist(distanceAtFrom(points2, simT));
+      const backward = derivativeSignedAtFrom(points2, simT) < 0;
+      const dy = TRACK_RIDER2_DY;
+      const tr = backward
+        ? "translate(" + cx + "," + dy + ") scale(-1,1) translate(" + -TRACK_RIDER_HALF_W + ",0)"
+        : "translate(" + (cx - TRACK_RIDER_HALF_W) + "," + dy + ")";
+      trackRider2.setAttribute("transform", tr);
+      syncJetPropulsion(trackRider2, points2);
+    }
+  }
+
+  function clientXY(ev) {
+    const touch = ev.touches && ev.touches[0];
+    const changed = ev.changedTouches && ev.changedTouches[0];
+    if (touch) return { clientX: touch.clientX, clientY: touch.clientY };
+    if (changed) return { clientX: changed.clientX, clientY: changed.clientY };
+    return { clientX: ev.clientX, clientY: ev.clientY };
+  }
+
+  /** Souřadnice v prostoru viewBox (správně i při měřítku SVG a „letterboxu“). */
+  function chartCoordsFromEvent(ev) {
+    const svg = chartEl;
+    const { clientX, clientY } = clientXY(ev);
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    try {
+      const ctm = svg.getScreenCTM();
+      if (ctm) {
+        const loc = pt.matrixTransform(ctm.inverse());
+        return { x: loc.x, y: loc.y };
+      }
+    } catch (err) {
+      /* fallback níže */
+    }
+    const r = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    const rw = r.width || 1;
+    const rh = r.height || 1;
+    return {
+      x: (clientX - r.left) * (vb.width / rw) + vb.x,
+      y: (clientY - r.top) * (vb.height / rh) + vb.y,
+    };
+  }
+
+  function getActiveGraph() {
+    if (!dualGraph) return 1;
+    const r = document.querySelector('input[name="graphTarget"]:checked');
+    return r && String(r.value) === "2" ? 2 : 1;
+  }
+
+  let dragIdx = -1;
+  let dragGraph = 1;
+  /** Bez pohybu nesmí mouseup překreslit graf – jinak zmizí stejný <circle> a dblclick nevznikne. */
+  let dragMoved = false;
+
+  function tryAddPointAtEvent(ev) {
+    if (running) return;
+    const { x, y } = chartCoordsFromEvent(ev);
+    if (x < ml || x > ml + pw || y < mt || y > mt + ph) return;
+    const t = xToT(x);
+    const s = yToS(y);
+    const nt = t / T_MAX;
+    const ns = s / S_MAX;
+
+    const targetArr = getActiveGraph() === 2 ? points2 : points;
+    const nearOrigin = targetArr.length > 0 && nt * nt + ns * ns < 0.03 * 0.03;
+    function nearIn(arr) {
+      return arr.some(function (p) {
+        const dx = (p.t - t) / T_MAX;
+        const dy = (p.s - s) / S_MAX;
+        return dx * dx + dy * dy < 0.03 * 0.03;
+      });
+    }
+    const near = nearOrigin || nearIn(targetArr);
+    if (near) return;
+
+    targetArr.push({ t, s });
+    sortPointsArr(targetArr);
+    redrawChart();
+  }
+
+  /** Jen plot vrstva – žádné závislosti na pointerevents vs. mouse kompatibilitě. */
+  function bindPlotHit(plotHit) {
+    plotHit.addEventListener("mousedown", function (ev) {
+      if (ev.button !== 0 || running) return;
+      ev.preventDefault();
+      tryAddPointAtEvent(ev);
+    });
+    plotHit.addEventListener(
+      "touchstart",
+      function (ev) {
+        if (running) return;
+        ev.preventDefault();
+        tryAddPointAtEvent(ev);
+      },
+      { passive: false }
+    );
+  }
+
+  function applyDrag(ev) {
+    if (dragIdx < 0 || running) return;
+    dragMoved = true;
+    const arr = dragGraph === 2 ? points2 : points;
+    const { x, y } = chartCoordsFromEvent(ev);
+    let t = xToT(Math.min(ml + pw, Math.max(ml, x)));
+    let s = yToS(Math.min(mt + ph, Math.max(mt, y)));
+
+    const p = arr[dragIdx];
+    if (!p) return;
+
+    const prev = dragIdx === 0 ? { t: 0, s: 0 } : arr[dragIdx - 1];
+    const next = arr[dragIdx + 1];
+    const eps = 0.03;
+    if (prev) t = Math.max(prev.t + eps, t);
+    if (next) t = Math.min(next.t - eps, t);
+
+    p.t = t;
+    p.s = s;
+    sortPointsArr(arr);
+    dragIdx = arr.indexOf(p);
+    redrawChart();
+  }
+
+  function endDrag() {
+    dragIdx = -1;
+    dragGraph = 1;
+    document.removeEventListener("mousemove", applyDrag);
+    document.removeEventListener("mouseup", endDrag);
+    document.removeEventListener("touchmove", applyDrag);
+    document.removeEventListener("touchend", endDrag);
+    document.removeEventListener("touchcancel", endDrag);
+    if (dragMoved) redrawChart();
+    dragMoved = false;
+  }
+
+  function startCircleDrag(idx, graphId, ev) {
+    dragMoved = false;
+    dragIdx = idx;
+    dragGraph = graphId;
+    resetPlaybackToStartIfPaused();
+    updateTrackRiderPosition();
+    updateChartTimeIndicator();
+    document.addEventListener("mousemove", applyDrag);
+    document.addEventListener("mouseup", endDrag);
+    document.addEventListener("touchmove", applyDrag, { passive: false });
+    document.addEventListener("touchend", endDrag);
+    document.addEventListener("touchcancel", endDrag);
+  }
+
+  function bindUserCircleDrag(circle, idx, graphId) {
+    circle.addEventListener("mousedown", function (ev) {
+      if (running || ev.button !== 0) return;
+      if (dualGraph && graphId !== getActiveGraph()) return;
+      ev.stopPropagation();
+      startCircleDrag(idx, graphId, ev);
+    });
+    circle.addEventListener(
+      "touchstart",
+      function (ev) {
+        if (running) return;
+        if (dualGraph && graphId !== getActiveGraph()) return;
+        ev.stopPropagation();
+        startCircleDrag(idx, graphId, ev);
+      },
+      { passive: false }
+    );
+  }
+
+  chartEl.addEventListener("dblclick", function (ev) {
+    if (running) return;
+    const target = ev.target;
+    if (
+      !target ||
+      target.namespaceURI !== "http://www.w3.org/2000/svg" ||
+      target.localName !== "circle"
+    ) {
+      return;
+    }
+    const raw =
+      target.getAttribute("data-index") ||
+      (target.dataset ? target.dataset.index : "");
+    if (raw === undefined || raw === null || raw === "") return;
+    const idx = parseInt(raw, 10);
+    if (idx !== idx || idx < 0) return;
+    const gRaw = target.getAttribute("data-graph") || "1";
+    const graph = parseInt(gRaw, 10);
+    const arr = graph === 2 ? points2 : points;
+    arr.splice(idx, 1);
+    redrawChart();
+    ev.preventDefault();
+  });
+
+  function tick(now) {
+    if (!running) return;
+    if (!lastFrame) lastFrame = now;
+    const dt = (now - lastFrame) / 1000;
+    lastFrame = now;
+    simT += dt;
+    const endT = simEndTime();
+    if (endT <= 0 || simT >= endT) {
+      simT = endT;
+      running = false;
+      btnRun.textContent = "Spustit";
+      lastFrame = 0;
+    }
+    timerEl.textContent = formatTimer(simT);
+    updateTrackRiderPosition();
+    updateChartTimeIndicator();
+    if (running) raf = requestAnimationFrame(tick);
+  }
+
+  btnRun.addEventListener("click", function () {
+    if (running) {
+      running = false;
+      btnRun.textContent = "Spustit";
+      cancelAnimationFrame(raf);
+      lastFrame = 0;
+      return;
+    }
+    if (points.length < 1 && !(dualGraph && points2.length >= 1)) return;
+    simT = 0;
+    lastFrame = 0;
+    running = true;
+    btnRun.textContent = "Pozastavit";
+    timerEl.textContent = formatTimer(0);
+    redrawChart();
+    raf = requestAnimationFrame(tick);
+  });
+
+  btnReset.addEventListener("click", function () {
+    running = false;
+    btnRun.textContent = "Spustit";
+    cancelAnimationFrame(raf);
+    lastFrame = 0;
+    simT = 0;
+    timerEl.textContent = formatTimer(0);
+    if (dragIdx >= 0) {
+      document.removeEventListener("mousemove", applyDrag);
+      document.removeEventListener("mouseup", endDrag);
+      document.removeEventListener("touchmove", applyDrag);
+      document.removeEventListener("touchend", endDrag);
+      document.removeEventListener("touchcancel", endDrag);
+    }
+    dragIdx = -1;
+    dragMoved = false;
+    dragGraph = 1;
+    points.length = 0;
+    points2.length = 0;
+    redrawChart();
+  });
+
+  chkDualGraph.addEventListener("change", function () {
+    dualGraph = chkDualGraph.checked;
+    graphTargetWrap.hidden = !dualGraph;
+    if (!dualGraph) {
+      const r1 = document.querySelector('input[name="graphTarget"][value="1"]');
+      if (r1) r1.checked = true;
+    }
+    syncGraphTargetRadios();
+    redrawChart();
+  });
+
+  document.querySelectorAll('input[name="graphTarget"]').forEach(function (el) {
+    el.addEventListener("change", function () {
+      if (dualGraph) redrawChart();
+    });
+  });
+
+  btnHelp.addEventListener("click", function () {
+    helpDialog.showModal();
+  });
+  helpDialogClose.addEventListener("click", function () {
+    helpDialog.close();
+  });
+  helpDialog.addEventListener("click", function (ev) {
+    if (ev.target === helpDialog) helpDialog.close();
+  });
+
+  syncGraphTargetRadios();
+  redrawChart();
+})();
+  </script>
+</body>
+</html>
