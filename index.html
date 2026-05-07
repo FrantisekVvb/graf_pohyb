@@ -32,14 +32,136 @@
     }
 
     .app {
-      max-width: 720px;
+      max-width: 920px;
       margin: 0 auto;
+    }
+
+    .graph-main-layout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      column-gap: 16px;
+      row-gap: 0;
+      align-items: start;
+    }
+
+    .graph-sidebar-buttons {
+      grid-column: 1;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 7.75rem;
+      align-self: start;
+    }
+
+    .graph-sidebar-buttons button {
+      width: 100%;
+      padding: 9px 12px;
+    }
+
+    .graph-sidebar-timer-wrap {
+      grid-column: 1;
+      grid-row: 4;
+      width: 7.75rem;
+      align-self: start;
+      margin-top: 20px;
+    }
+
+    .graph-sidebar-timer-wrap .timer {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .graph-main-layout > h1 {
+      grid-column: 2;
+      grid-row: 1;
+      margin: 0 0 16px;
+    }
+
+    .graph-main-layout > .chart-wrap {
+      grid-column: 2;
+      grid-row: 2;
+      min-width: 0;
+    }
+
+    .graph-axis-y-bar {
+      grid-column: 2;
+      grid-row: 3;
+      min-width: 0;
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--panel);
+      border-radius: 8px;
+      border: 1px solid #dde3ec;
+    }
+
+    .graph-axis-y-bar .graph-target-wrap {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+    }
+
+    .graph-main-layout > .track-section {
+      grid-column: 2;
+      grid-row: 4;
+      min-width: 0;
+    }
+
+    @media (max-width: 560px) {
+      .graph-main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .graph-sidebar-buttons {
+        grid-column: 1;
+        grid-row: 2;
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 100%;
+      }
+
+      .graph-sidebar-buttons button {
+        width: auto;
+        flex: 1 1 auto;
+        min-width: min(100%, 7rem);
+      }
+
+      .graph-axis-y-bar {
+        grid-column: 1;
+        grid-row: 4;
+        margin-top: 12px;
+      }
+
+      .graph-sidebar-timer-wrap {
+        grid-column: 1;
+        grid-row: 5;
+        width: 100%;
+        max-width: 12rem;
+        align-self: center;
+        margin-top: 0;
+      }
+
+      .graph-main-layout > h1 {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .graph-main-layout > .chart-wrap {
+        grid-column: 1;
+        grid-row: 3;
+      }
+
+      .graph-main-layout > .track-section {
+        grid-column: 1;
+        grid-row: 6;
+      }
     }
 
     h1 {
       font-size: 1.15rem;
       font-weight: 600;
-      margin: 0 0 16px;
     }
 
     .chart-wrap {
@@ -75,7 +197,7 @@
     }
 
     /**
-     * ViewBox 600×96 — druhý cyklista pod hlavní černou čárou.
+     * ViewBox má horní rezervu (záporné min-y), aby nebyla ořezaná hlava SVG cyklisty.
      */
     .track-section > .track-svg {
       display: block;
@@ -115,7 +237,7 @@
       margin-top: 16px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 16px;
       flex-wrap: wrap;
     }
@@ -123,8 +245,26 @@
     .controls-buttons {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
+    }
+
+    .dual-graph-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .graph-target-wrap.graph-target-under-dual {
+      margin-left: 0;
+      padding-left: 22px;
+      border-left: none;
+    }
+
+    .graph-target-wrap[hidden] {
+      display: none !important;
     }
 
     button {
@@ -231,38 +371,48 @@
 </head>
 <body>
   <div class="app">
-    <h1>Graf pohybu</h1>
-
-    <div class="chart-wrap">
-      <svg id="chart" class="chart-svg" viewBox="0 0 600 340" aria-label="Graf vzdálenost–čas"></svg>
-    </div>
-
-    <div class="track-section">
-      <svg id="track" class="track-svg" viewBox="0 0 600 96" aria-label="Dráha"></svg>
-    </div>
-
-    <div class="controls">
-      <div class="controls-buttons">
+    <div class="graph-main-layout">
+      <div class="graph-sidebar-buttons" aria-label="Akce">
         <button type="button" id="btnRun">Spustit</button>
         <button type="button" id="btnReset" class="secondary">Reset</button>
-        <label class="dual-check">
-          <input type="checkbox" id="chkDualGraph" />
-          Druhý graf
-        </label>
+        <button type="button" id="btnHelp" class="secondary">Nápověda</button>
+      </div>
+      <div class="graph-sidebar-timer-wrap" aria-label="Časomíra">
+        <span class="timer" id="timer" aria-live="polite">00 : 00</span>
+      </div>
+      <h1>Graf pohybu</h1>
+      <div class="chart-wrap">
+        <svg id="chart" class="chart-svg" viewBox="0 0 648 340" aria-label="Graf vzdálenost–čas"></svg>
+      </div>
+
+      <div class="graph-axis-y-bar">
         <span class="graph-target-wrap axis-y-wrap">
           <span class="graph-target-label">Osa Y</span>
           <label><input type="radio" name="axisY" value="start" checked /> Vzdálenost od startu</label>
           <label><input type="radio" name="axisY" value="cumulative" /> Celkově ujetá vzdálenost</label>
           <label><input type="radio" name="axisY" value="velocity" /> Rychlost</label>
         </span>
-        <span id="graphTargetWrap" class="graph-target-wrap" hidden>
-          <span class="graph-target-label">Upravovat</span>
-          <label><input type="radio" name="graphTarget" value="1" checked disabled /> graf 1</label>
-          <label><input type="radio" name="graphTarget" value="2" disabled /> graf 2</label>
-        </span>
-        <button type="button" id="btnHelp" class="secondary">Nápověda</button>
       </div>
-      <span class="timer" id="timer" aria-live="polite">00 : 00</span>
+
+      <div class="track-section">
+        <svg id="track" class="track-svg" viewBox="0 -18 648 114" preserveAspectRatio="xMidYMid meet" aria-label="Dráha"></svg>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-buttons">
+        <div class="dual-graph-block">
+          <label class="dual-check">
+            <input type="checkbox" id="chkDualGraph" />
+            Dva cyklisti
+          </label>
+          <span id="graphTargetWrap" class="graph-target-wrap graph-target-under-dual" hidden>
+            <span class="graph-target-label">Upravovat</span>
+            <label><input type="radio" name="graphTarget" value="1" checked disabled /> graf 1</label>
+            <label><input type="radio" name="graphTarget" value="2" disabled /> graf 2</label>
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -271,6 +421,7 @@
       <h2 id="helpDialogTitle">Tvorba grafu</h2>
       <p>
         Kliknutím přidej bod grafu. Body je možné posunovat. Dvojklikem bod zrušíš.
+        U čar mřížky se bod jemně přitahuje; dál od nich lze zadat hodnotu i mezi dílky.
       </p>
       <button type="button" id="helpDialogClose" class="secondary">Zavřít</button>
     </div>
@@ -284,6 +435,9 @@
   const VELOCITY_AXIS_MPS_PER_DIV = 2;
   /** Jedna dílka na vodorovné časové ose [s] */
   const TIME_AXIS_STEP = 1;
+
+  /** Tolerance přitahu k čáře mřížky ve viewBox souřadnicích grafu (mimo ni lze vložit libovolně). */
+  const CHART_GRID_SNAP_PX = 7;
 
   function velocityGraphMaxMps() {
     return S_MAX * VELOCITY_AXIS_MPS_PER_DIV;
@@ -301,11 +455,11 @@
   const timerEl = document.getElementById("timer");
 
   /** Plot margins inside SVG viewBox */
-  const ml = 52;
+  const ml = 78;
   const mr = 28;
   const mt = 28;
   const mb = 44;
-  const W = 600;
+  const W = 648;
   const H = 340;
   const pw = W - ml - mr;
   const ph = H - mt - mb;
@@ -335,6 +489,41 @@
 
   function yToV(y) {
     return yToS(y) * VELOCITY_AXIS_MPS_PER_DIV;
+  }
+
+  function snapChartXToTimeGrid(x) {
+    const xP = Math.min(ml + pw, Math.max(ml, x));
+    const tRaw = xToT(xP);
+    const tGrid =
+      Math.round(tRaw / TIME_AXIS_STEP) * TIME_AXIS_STEP;
+    const tSn = Math.min(T_MAX, Math.max(0, tGrid));
+    const xGrid = tToX(tSn);
+    if (Math.abs(xGrid - xP) <= CHART_GRID_SNAP_PX) return xGrid;
+    return xP;
+  }
+
+  /** Svislé čáry drawGrid — vzdálenost / dílek na ose případně rychlost / 2 m·s⁻¹. */
+  function snapChartYToValueGrid(y) {
+    const yP = Math.min(mt + ph, Math.max(mt, y));
+    if (yAxisMode === "velocity") {
+      const vRaw = yToV(yP);
+      const vGrid =
+        Math.round(vRaw / VELOCITY_AXIS_MPS_PER_DIV) *
+        VELOCITY_AXIS_MPS_PER_DIV;
+      const vSn = Math.min(velocityGraphMaxMps(), Math.max(0, vGrid));
+      const yGrid = vToY(vSn);
+      if (Math.abs(yGrid - yP) <= CHART_GRID_SNAP_PX) return yGrid;
+    } else {
+      const sRaw = yToS(yP);
+      const sSn = Math.min(S_MAX, Math.max(0, Math.round(sRaw)));
+      const yGrid = sToY(sSn);
+      if (Math.abs(yGrid - yP) <= CHART_GRID_SNAP_PX) return yGrid;
+    }
+    return yP;
+  }
+
+  function snapChartXYToGrid(x, y) {
+    return { x: snapChartXToTimeGrid(x), y: snapChartYToValueGrid(y) };
   }
 
   /**
@@ -384,6 +573,9 @@
   let simT = 0;
   let lastFrame = 0;
   let raf = 0;
+  /** Kumulativní natočení kol (°) pro animaci — po každém „Spustit“ se nuluje v kódu přehrávání. */
+  let trackWheelPhaseDeg1 = 0;
+  let trackWheelPhaseDeg2 = 0;
 
   function sortPointsArr(arr) {
     if (!arr.length) return;
@@ -518,7 +710,7 @@
     if (!arr.length) return 0;
     const vk = velocityKnotsFromUserPoints(arr, g);
     const last = vk[vk.length - 1];
-    if (t >= last.t) return 0;
+    if (t > last.t) return 0;
     if (t <= 0) return 0;
     for (let i = 0; i < vk.length - 1; i++) {
       const a = vk[i];
@@ -664,7 +856,7 @@
     const j = document.createElementNS(NS, "g");
     j.setAttribute("class", "cyclist-jet");
     j.setAttribute("pointer-events", "none");
-    j.setAttribute("transform", "translate(13,27.5)");
+    j.setAttribute("transform", "translate(11.2,27.5)");
 
     const outer = document.createElementNS(NS, "path");
     outer.setAttribute("d", "M0,-7 L-22,-2.5 L-26,0 L-22,2.5 L0,7 Z");
@@ -723,6 +915,43 @@
     return distanceAtFrom(arr, tDraw);
   }
 
+  /** Nejvyšší čas na nakreslené křivce (stejný konec jako polyline). */
+  function chartPlaybackUpperBoundT(arr) {
+    sortPointsArr(arr);
+    if (!arr.length) return 0;
+    if (yAxisMode === "velocity") {
+      return Math.min(T_MAX, arr[arr.length - 1].t);
+    }
+    const v = verticesFrom(arr);
+    if (v.length < 2) return 0;
+    return Math.min(T_MAX, v[v.length - 1].t);
+  }
+
+  /**
+   * Pozice ukazatele: čas nikdy za poslední uzel; na konci přesně střed posledního uzlu
+   * (oprava vodorovného „jetí“ při s(t)=konst. za posledním bodem nebo float/simT).
+   */
+  function indicatorCoordsForGraph(arr, simTClampedGlobal) {
+    const tLim = chartPlaybackUpperBoundT(arr);
+    if (!(tLim > 0)) return null;
+    const tWant = Math.min(simTClampedGlobal, tLim);
+    const epsT = 5e-7;
+    if (tWant >= tLim - epsT) {
+      if (yAxisMode === "velocity") {
+        const vm = Math.min(
+          velocityGraphMaxMps(),
+          Math.max(0, arr[arr.length - 1].s)
+        );
+        return { cx: tToX(arr[arr.length - 1].t), cyPlot: vm };
+      }
+      const v = verticesFrom(arr);
+      const lp = v[v.length - 1];
+      return { cx: tToX(lp.t), cyPlot: lp.s };
+    }
+    const yPlot = chartIndicatorVerticalValue(arr, tWant);
+    return { cx: tToX(tWant), cyPlot: yPlot };
+  }
+
   function updateChartTimeIndicator() {
     const dot = chartEl.querySelector("#chart-time-indicator");
     const dot2 = chartEl.querySelector("#chart-time-indicator-2");
@@ -734,9 +963,14 @@
     }
 
     const endT = simEndTime();
-    const tDraw = Math.min(Math.max(0, simT), endT);
+    const simTClamped = Math.min(Math.max(0, simT), endT);
 
-    function placeIndicator(el, id, fill, stroke, arr, tDraw) {
+    function placeIndicator(el, id, fill, stroke, arr) {
+      const coords = indicatorCoordsForGraph(arr, simTClamped);
+      if (!coords) {
+        if (el) el.remove();
+        return;
+      }
       let d = el;
       if (!d) {
         d = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -748,32 +982,34 @@
         d.setAttribute("pointer-events", "none");
         chartEl.appendChild(d);
       }
-      d.setAttribute("cx", tToX(tDraw));
-      const yPlot = chartIndicatorVerticalValue(arr, tDraw);
-      d.setAttribute("cy", yAxisMode === "velocity" ? vToY(yPlot) : sToY(yPlot));
+      d.setAttribute("cx", String(coords.cx));
+      d.setAttribute(
+        "cy",
+        String(yAxisMode === "velocity" ? vToY(coords.cyPlot) : sToY(coords.cyPlot))
+      );
     }
 
-    if (simEndTimeFrom(points) > 0) {
+    const end1 = simEndTimeFrom(points);
+    if (end1 > 0) {
       placeIndicator(
         dot,
         "chart-time-indicator",
         "#d92222",
         "#ffffff",
-        points,
-        tDraw
+        points
       );
     } else if (dot) {
       dot.remove();
     }
 
-    if (dualGraph && simEndTimeFrom(points2) > 0) {
+    const end2 = dualGraph ? simEndTimeFrom(points2) : 0;
+    if (dualGraph && end2 > 0) {
       placeIndicator(
         dot2,
         "chart-time-indicator-2",
         "#1565c0",
         "#ffffff",
-        points2,
-        tDraw
+        points2
       );
     } else if (dot2) {
       dot2.remove();
@@ -857,19 +1093,27 @@
 
     const xl = document.createElementNS("http://www.w3.org/2000/svg", "text");
     xl.setAttribute("x", ml + pw / 2);
-    xl.setAttribute("y", H - 12);
+    xl.setAttribute("y", H - 6);
     xl.setAttribute("text-anchor", "middle");
     xl.setAttribute("fill", axisColor);
     xl.setAttribute("font-size", "14");
     xl.textContent = "Čas";
     ax.appendChild(xl);
 
+    /** Střed šipky Y osy (od špičky mt−4 po základ mt+ph); popisek vycentrovaný a vlevo od dílků. */
+    const yAxisLabelCy = (mt - 4 + mt + ph) / 2;
+    const yAxisLabelX = 16;
     const yl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    yl.setAttribute("x", 14);
-    yl.setAttribute("y", mt + ph / 2);
+    yl.setAttribute("x", String(yAxisLabelX));
+    yl.setAttribute("y", String(yAxisLabelCy));
+    yl.setAttribute("text-anchor", "middle");
+    yl.setAttribute("dominant-baseline", "middle");
     yl.setAttribute("fill", axisColor);
     yl.setAttribute("font-size", "14");
-    yl.setAttribute("transform", "rotate(-90 " + 14 + " " + (mt + ph / 2) + ")");
+    yl.setAttribute(
+      "transform",
+      "rotate(-90 " + yAxisLabelX + " " + yAxisLabelCy + ")"
+    );
     yl.textContent =
       yAxisMode === "cumulative"
         ? "Celkově ujetá vzdálenost"
@@ -893,7 +1137,7 @@
       lab.setAttribute("text-anchor", "middle");
       lab.setAttribute("font-size", "11");
       lab.setAttribute("fill", "#444");
-      lab.textContent = String(t);
+      lab.textContent = String(t) + " s";
       ax.appendChild(lab);
     }
 
@@ -930,6 +1174,8 @@
     simT = 0;
     lastFrame = 0;
     timerEl.textContent = formatTimer(0);
+    trackWheelPhaseDeg1 = 0;
+    trackWheelPhaseDeg2 = 0;
   }
 
   function redrawChart() {
@@ -1143,15 +1389,94 @@
     drawTrack();
   }
 
-  const TW = 600;
+  const TW = 648;
+  /** Spodní okraj výřezu dráhy (souřadnice os Y); nálepky pod čárou používají TH. */
   const TH = 96;
+  /** Horní rezerva viewBoxu dráhy (záporná souřadnice), aby byl vidět horní díl figurky. */
+  const TRACK_VIEW_Y_MIN = -18;
+  /** viewBox výška = TH − TRACK_VIEW_Y_MIN */
+  const TRACK_VIEW_HEIGHT = TH - TRACK_VIEW_Y_MIN;
   /** Hlavní čára dráhy (první cyklista „na“ čáře). */
   const TRACK_LINE_Y = 38;
   /** Druhý cyklista — posun dolů pod černou linku. */
   const TRACK_RIDER2_DY = 28;
-  /** Šířka figurky cyklisty ve vlastních souřadnicích (≈ polovina pro centrovaní na dráze). */
-  const TRACK_RIDER_W = 54;
+  /** Šířka figurky cyklisty ve vlastních souřadnicích (viewBox šířka SVG, polovina pro centrovaní na dráze). */
+  const TRACK_RIDER_W = 57;
   const TRACK_RIDER_HALF_W = TRACK_RIDER_W / 2;
+  /** Střed zadního kola v assetu (viewBox cyklista) — svisle zarovnáme na stejnou výšku náboje jako starý grafický jezdec. */
+  const RIDER_REAR_HUB_Y = 39.5322;
+  const RIDER_AXLE_ALIGN_Y = 27.5;
+  const RIDER_SVG_OFFSET_Y = RIDER_AXLE_ALIGN_Y - RIDER_REAR_HUB_Y;
+  /** Poloměr valivého kola v prostoru znaku (bez skluzu) — jen pro vizuální souklad s posunem po dráze. */
+  const RIDER_WHEEL_ROLL_RADIUS = 10.4;
+  const WHEEL_HUB_FRONT_X = 45.5425;
+  const WHEEL_HUB_FRONT_Y = 39.5321;
+  const WHEEL_HUB_REAR_X = 11.2049;
+  const WHEEL_HUB_REAR_Y = 39.5322;
+
+  const RIDER_SVG_MARKUP = `<svg xmlns="http://www.w3.org/2000/svg" width="57" height="51" viewBox="0 0 57 51" fill="none" overflow="visible">
+<defs><clipPath id="__LEG_CLIP_ID__"><rect x="-5" y="29.39" width="70" height="25"/></clipPath></defs>
+<g class="cyclist-leg-rear" transform="translate(0,0)">
+<path d="M24.1306 15.1101L31.7197 20.219C32.4877 20.7348 32.7629 21.7335 32.369 22.5707L26.306 36.7799C25.9467 37.5446 25.0601 37.9055 24.2707 37.6089C23.4845 37.3139 23.0528 36.4668 23.2785 35.6576L25.8429 23.4425L17.9587 17.508" fill="white"/>
+<path d="M24.1306 15.1101L31.7197 20.219C32.4877 20.7348 32.7629 21.7335 32.369 22.5707L26.306 36.7799C25.9467 37.5446 25.0601 37.9055 24.2707 37.6089C23.4845 37.3139 23.0528 36.4668 23.2785 35.6576L25.8429 23.4425L17.9587 17.508" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+<path d="M29.1792 18.6056C29.1792 18.6056 28.9501 21.8126 25.7678 23.1887L29.1792 18.6056Z" fill="white"/>
+<path d="M29.1792 18.6056C29.1792 18.6056 28.9501 21.8126 25.7678 23.1887" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+</g>
+<g class="cyclist-wheel-front" transform="rotate(0 ${WHEEL_HUB_FRONT_X} ${WHEEL_HUB_FRONT_Y})">
+<path d="M45.5418 48.743C50.6288 48.743 54.7526 44.6192 54.7526 39.5322C54.7526 34.4452 50.6288 30.3214 45.5418 30.3214C40.4549 30.3214 36.3311 34.4452 36.3311 39.5322C36.3311 44.6192 40.4549 48.743 45.5418 48.743Z" stroke="#B1B1B1" stroke-width="2.30723" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M45.5425 50.2426C51.4577 50.2426 56.253 45.4474 56.253 39.5321C56.253 33.6169 51.4577 28.8217 45.5425 28.8217C39.6273 28.8217 34.832 33.6169 34.832 39.5321C34.832 45.4474 39.6273 50.2426 45.5425 50.2426Z" stroke="#1D1D1B" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M55.3018 39.5322C55.3018 44.9212 50.933 49.2917 45.5423 49.2917C40.1516 49.2917 35.7827 44.9228 35.7827 39.5322C35.7827 34.1415 40.1516 29.7726 45.5423 29.7726" stroke="white" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M37.5173 39.5387H53.5443" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M45.5293 31.5244V47.5514" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M39.865 33.8712L51.1984 45.2046" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M51.1984 33.8712L39.865 45.2046" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M38.093 36.5509L52.9647 42.525" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M48.5163 32.1029L42.5422 46.9746" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M42.3828 32.1688L48.6749 46.9087" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M52.8986 36.3927L38.1587 42.6848" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+</g>
+<g class="cyclist-wheel-rear" transform="rotate(0 ${WHEEL_HUB_REAR_X} ${WHEEL_HUB_REAR_Y})">
+<path d="M11.2054 48.743C16.2924 48.743 20.4162 44.6192 20.4162 39.5322C20.4162 34.4452 16.2924 30.3214 11.2054 30.3214C6.11844 30.3214 1.99463 34.4452 1.99463 39.5322C1.99463 44.6192 6.11844 48.743 11.2054 48.743Z" stroke="#B1B1B1" stroke-width="2.30723" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M11.2049 50.2426C17.1201 50.2426 21.9153 45.4474 21.9153 39.5321C21.9153 33.6169 17.1201 28.8217 11.2049 28.8217C5.28963 28.8217 0.494385 33.6169 0.494385 39.5321C0.494385 45.4474 5.28963 50.2426 11.2049 50.2426Z" stroke="#1D1D1B" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M11.2046 29.7743C16.5937 29.7743 20.9642 34.1432 20.9642 39.5339C20.9642 44.9245 16.5953 49.2934 11.2046 49.2934C5.81397 49.2934 1.44507 44.9245 1.44507 39.5339" stroke="white" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M3.17847 39.5387H19.2054" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M11.1931 31.5244V47.5514" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M5.52612 33.8712L16.8595 45.2046" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M16.8595 33.8712L5.52612 45.2046" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M3.75732 36.5509L18.629 42.525" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M14.1791 32.1029L8.20508 46.9746" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M8.04712 32.1688L14.3376 46.9087" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M18.5631 36.3927L3.82153 42.6848" stroke="#1D1D1B" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+</g>
+<path d="M20.6526 23.2975H38.9176" stroke="#FF184A" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M45.5414 39.5322L37.949 20.4811C37.7248 19.9207 38.1385 19.3093 38.7417 19.3093H44.6169C46.3374 19.3093 47.7333 20.7036 47.7333 22.4257C47.7333 24.1463 46.339 25.5421 44.6169 25.5421H43.4715" stroke="#1D1D1B" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M39.625 24.7213L26.96 40.9939" stroke="#FF184A" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M19.3298 19.9042L26.9602 40.9939" stroke="#FF184A" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M22.3955 18.8116L16.1313 17.0911C15.7655 16.9905 15.4079 17.2822 15.4342 17.6613L15.4771 18.2826C15.5249 18.9632 16.1066 19.4823 16.7889 19.4527L22.3493 19.2055C22.5784 19.1956 22.6147 18.8726 22.3938 18.8116H22.3955Z" fill="#1D1D1B" stroke="#1D1D1B" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M20.6528 23.2975L11.241 39.5321L26.968 40.778" stroke="#FF184A" stroke-width="0.988811" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M11.2405 41.5114C12.3336 41.5114 13.2198 40.6252 13.2198 39.5321C13.2198 38.439 12.3336 37.5529 11.2405 37.5529C10.1474 37.5529 9.26123 38.439 9.26123 39.5321C9.26123 40.6252 10.1474 41.5114 11.2405 41.5114Z" fill="#1D1D1B"/>
+<path d="M11.2407 37.5545L27.3369 37.3995L26.2113 44.0872L10.7183 41.4652L11.2407 37.5545Z" fill="#1D1D1B"/>
+<path d="M45.5411 39.5322L37.9487 20.4811" stroke="#FF184A" stroke-width="0.988811" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M26.9676 44.168C28.8398 44.168 30.3576 42.6503 30.3576 40.778C30.3576 38.9058 28.8398 37.3881 26.9676 37.3881C25.0954 37.3881 23.5776 38.9058 23.5776 40.778C23.5776 42.6503 25.0954 44.168 26.9676 44.168Z" fill="#1D1D1B"/>
+<path d="M26.1291 43.3736L11.0695 40.9164C10.3262 40.7121 9.8862 39.9458 10.0873 39.2008C10.2636 38.5416 10.8898 38.1066 11.5705 38.1692L27.1953 38.2895C27.9023 38.3637 28.5467 38.7295 28.9736 39.2981C29.8882 40.5176 29.5405 42.2596 28.2286 43.0358L28.105 43.1083C27.5101 43.461 26.7982 43.5566 26.1307 43.3753L26.1291 43.3736Z" stroke="white" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M26.8768 43.3736C28.2603 43.3736 29.3818 42.2521 29.3818 40.8686C29.3818 39.4852 28.2603 38.3636 26.8768 38.3636C25.4933 38.3636 24.3718 39.4852 24.3718 40.8686C24.3718 42.2521 25.4933 43.3736 26.8768 43.3736Z" stroke="white" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M11.2132 40.7616C11.8859 40.7616 12.4311 40.2163 12.4311 39.5437C12.4311 38.8711 11.8859 38.3258 11.2132 38.3258C10.5406 38.3258 9.99536 38.8711 9.99536 39.5437C9.99536 40.2163 10.5406 40.7616 11.2132 40.7616Z" stroke="white" stroke-width="0.164802" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M38.8754 10.644C41.3147 10.644 43.2921 8.66663 43.2921 6.22736C43.2921 3.78809 41.3147 1.81067 38.8754 1.81067C36.4362 1.81067 34.4587 3.78809 34.4587 6.22736C34.4587 8.66663 36.4362 10.644 38.8754 10.644Z" fill="white" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+<g class="cyclist-helmet">
+<path d="M43.7263 5.20228C43.7543 5.57143 43.4165 5.86148 43.0556 5.78073C40.9148 5.30445 34.4035 4.26785 31.2426 4.37991C28.5646 4.47385 33.3867 -0.361436 39.252 0.212074C42.9073 0.569694 43.606 3.64984 43.7263 5.20063V5.20228Z" fill="#FF184A" stroke="#FF184A" stroke-width="0.329604" stroke-miterlimit="10"/>
+</g>
+<g class="cyclist-leg-front" clip-path="url(#__LEG_CLIP_ID__)" transform="translate(0,0)">
+<path d="M31.342 24L31.66 44.25C31.69 45.02 31.12 45.68 30.35 45.77C29.5 45.86 28.78 45.28 28.68 44.48L26.8166 24Z" fill="white" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+</g>
+<path d="M39.5047 11.4038L40.4193 18.1706L46.8515 16.5984C47.5487 16.4352 48.254 16.8406 48.4633 17.5245C48.6792 18.2282 48.2952 18.9764 47.5981 19.2138L40.1952 21.4435C38.8603 21.8605 37.4381 21.1255 37.0063 19.7939C36.3075 17.635 35.823 16.0974 35.5181 15.1432C34.9133 13.2529 33.5257 13.6748 33.5257 13.6748C31.1542 13.7868 27.3324 14.2812 25.1125 14.6372C24.5209 14.7328 24.2605 15.4332 24.6412 15.8963C25.897 17.424 30.9976 27.5659 30.9976 27.5659C31.2102 28.1477 31.3256 28.7607 31.342 29.3804L26.8166 29.8896L17.9568 19.4181C17.9568 19.4181 15.1783 17.2592 15.7254 13.8C16.0896 11.5043 16.2132 10.2387 20.6794 8.31706C23.4777 7.11401 27.929 5.41161 33.0082 4.80184C35.8807 4.45575 39.3135 9.92882 39.5014 11.4054L39.5047 11.4038Z" fill="white" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+<path d="M23.8462 26.3958C23.8462 26.3958 27.602 27.4555 28.9073 23.4211" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+<path d="M35.52 15.1447C36.8104 15.3524 38.3019 15.5188 39.8411 13.7307L35.52 15.1447Z" fill="white"/>
+<path d="M35.52 15.1447C36.8104 15.3524 38.3019 15.5188 39.8411 13.7307" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+<path d="M18.9447 9.15588C18.9447 9.15588 17.9114 12.7716 24.6847 14.7229L18.9447 9.15588Z" fill="white"/>
+<path d="M18.9447 9.15588C18.9447 9.15588 17.9114 12.7716 24.6847 14.7229" stroke="#1D1D1B" stroke-width="0.329604" stroke-miterlimit="10"/>
+<path d="M42.401 3.98273C42.401 3.98273 42.1554 1.77439 39.2104 1.43654C36.2654 1.0987 32.9529 2.93954 32.9529 2.93954" stroke="#803B50" stroke-width="0.329604" stroke-miterlimit="10" stroke-linecap="round"/>
+<path d="M41.5093 4.20518C41.5093 4.20518 39.0027 2.46487 35.6111 3.43885" stroke="#803B50" stroke-width="0.329604" stroke-miterlimit="10" stroke-linecap="round"/>
+</svg>`;
   const TRACK_X_MARGIN = TRACK_RIDER_HALF_W + 10;
 
   function trackInnerWidth() {
@@ -1163,106 +1488,132 @@
     return TRACK_X_MARGIN + (dPlot / S_MAX) * trackInnerWidth();
   }
 
-  /** Jednoduchý cyklista z profilu (nápodobně obrázku): černé pozadí nepoužíváme — světlý panel. */
-  function createTrackRiderGroup(cx, ptsArr) {
+  function applyCyclistWheelTransforms(riderOuterG, phaseDeg) {
+    const sprite = riderOuterG && riderOuterG.querySelector("svg");
+    if (!sprite) return;
+    const deg = typeof phaseDeg === "number" && phaseDeg === phaseDeg ? phaseDeg : 0;
+    const front = sprite.querySelector(".cyclist-wheel-front");
+    const rear = sprite.querySelector(".cyclist-wheel-rear");
+    const tF =
+      "rotate(" +
+      deg +
+      " " +
+      WHEEL_HUB_FRONT_X +
+      " " +
+      WHEEL_HUB_FRONT_Y +
+      ")";
+    const tR =
+      "rotate(" + deg + " " + WHEEL_HUB_REAR_X + " " + WHEEL_HUB_REAR_Y + ")";
+    if (front) front.setAttribute("transform", tF);
+    if (rear) rear.setAttribute("transform", tR);
+  }
+
+  function refreshTrackRiderWheelAngles() {
+    if (trackRider) applyCyclistWheelTransforms(trackRider, trackWheelPhaseDeg1);
+    if (dualGraph && trackRider2)
+      applyCyclistWheelTransforms(trackRider2, trackWheelPhaseDeg2);
+  }
+
+  /** Houpání noh — pouze svislý translate. Front a Rear v opačné fázi (jako pedálování). */
+  const RIDER_LEG_GEAR_RATIO = 1.8;
+  const RIDER_LEG_AMPLITUDE = 2.4;
+  /** Při šlapání dolů se přední noha jinak posune moc níž — zde omezíme jen kladný translate (směr +Y). */
+  const RIDER_FRONT_LEG_DOWN_SCALE = 0.35;
+  /** Rotace siluety přední nohy kolem kyčle — plná sinusoida, koleno „jde“ nahoru i dolů v každém cyklu. */
+  const RIDER_FRONT_HIP_X = 31.342;
+  const RIDER_FRONT_HIP_Y = 24;
+  /** Max. úhel (°) kolem kyčle; skutečný průběh ±tato hodnota (ohýbání / natažení v rytmu šlapání). */
+  const RIDER_FRONT_KNEE_SWING_DEG = 14;
+
+  function applyCyclistLegMotion(riderOuterG, phaseDeg) {
+    const sprite = riderOuterG && riderOuterG.querySelector("svg");
+    if (!sprite) return;
+    const safe = typeof phaseDeg === "number" && phaseDeg === phaseDeg ? phaseDeg : 0;
+    const legPhaseRad = ((safe / RIDER_LEG_GEAR_RATIO) * Math.PI) / 180;
+    const legOsc = Math.sin(legPhaseRad);
+    const dyFront =
+      RIDER_LEG_AMPLITUDE *
+      legOsc *
+      (legOsc > 0 ? RIDER_FRONT_LEG_DOWN_SCALE : 1);
+    const dyRear = -RIDER_LEG_AMPLITUDE * legOsc;
+    const kneeDeg = legOsc * RIDER_FRONT_KNEE_SWING_DEG;
+    const fronts = sprite.getElementsByClassName("cyclist-leg-front");
+    const rears = sprite.getElementsByClassName("cyclist-leg-rear");
+    for (let i = 0; i < fronts.length; i++) {
+      fronts[i].setAttribute(
+        "transform",
+        "translate(0," +
+          dyFront +
+          ") rotate(" +
+          kneeDeg +
+          " " +
+          RIDER_FRONT_HIP_X +
+          " " +
+          RIDER_FRONT_HIP_Y +
+          ")"
+      );
+    }
+    for (let i = 0; i < rears.length; i++) {
+      rears[i].setAttribute("transform", "translate(0," + dyRear + ")");
+    }
+  }
+
+  function refreshTrackRiderLegPhases() {
+    if (trackRider) applyCyclistLegMotion(trackRider, trackWheelPhaseDeg1);
+    if (dualGraph && trackRider2)
+      applyCyclistLegMotion(trackRider2, trackWheelPhaseDeg2);
+  }
+
+  /** Druhý jezdec — modrá helma (odlišení od červené grafu 2). */
+  const RIDER2_HELMET_FILL = "#2563EB";
+  const RIDER2_HELMET_STROKE = "#1D4ED8";
+
+  function applyCyclistHelmetColors(riderOuterG, fill, stroke) {
+    const sprite = riderOuterG && riderOuterG.querySelector("svg");
+    if (!sprite || !fill) return;
+    const wrap = sprite.querySelector(".cyclist-helmet");
+    if (!wrap) return;
+    const s = stroke || fill;
+    const paths = wrap.getElementsByTagName("path");
+    for (let i = 0; i < paths.length; i++) {
+      paths[i].setAttribute("fill", fill);
+      paths[i].setAttribute("stroke", s);
+    }
+  }
+
+  /** Cyklista jako vložené SVG — zarovnání náboje zadního kola na výšku dříve kreslené figurky. */
+  let trackRiderUidCounter = 0;
+  function createTrackRiderGroup(cx, ptsArr, wheelPhaseDeg, helmetOpts) {
     const NS = "http://www.w3.org/2000/svg";
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "track-rider");
     g.setAttribute("pointer-events", "none");
     g.setAttribute("transform", "translate(" + (cx - TRACK_RIDER_HALF_W) + ",0)");
 
-    function wheel(wx, wy, wr) {
-      const c = document.createElementNS(NS, "circle");
-      c.setAttribute("cx", String(wx));
-      c.setAttribute("cy", String(wy));
-      c.setAttribute("r", String(wr));
-      c.setAttribute("fill", "#8b929c");
-      c.setAttribute("stroke", "#111");
-      c.setAttribute("stroke-width", "1.25");
-      return c;
+    const artWrap = document.createElementNS(NS, "g");
+    artWrap.setAttribute("transform", "translate(0," + RIDER_SVG_OFFSET_Y + ")");
+    const legClipId = "leg-clip-" + (++trackRiderUidCounter);
+    const markup = RIDER_SVG_MARKUP.replace(/__LEG_CLIP_ID__/g, legClipId);
+    const parsed = new DOMParser().parseFromString(markup, "image/svg+xml");
+    if (parsed.querySelector("parsererror")) {
+      console.warn("Chyba parsování SVG cyklista.");
+    } else {
+      artWrap.appendChild(document.importNode(parsed.documentElement, true));
     }
+    g.appendChild(artWrap);
 
-    function spoke(wx, wy, wr) {
-      const ln = document.createElementNS(NS, "line");
-      ln.setAttribute("x1", String(wx - wr));
-      ln.setAttribute("y1", String(wy));
-      ln.setAttribute("x2", String(wx + wr));
-      ln.setAttribute("y2", String(wy));
-      ln.setAttribute("stroke", "#222");
-      ln.setAttribute("stroke-width", "0.75");
-      return ln;
-    }
-
-    const wr = 8.5;
-    const rCx = 14;
-    const fCx = 41;
-    const wCy = 27.5;
-
-    const frame = document.createElementNS(NS, "path");
-    frame.setAttribute(
-      "d",
-      "M14 27.5 L23 15 L38 12 L41 27.5 Z"
+    applyCyclistWheelTransforms(
+      g,
+      typeof wheelPhaseDeg === "number" ? wheelPhaseDeg : 0
     );
-    frame.setAttribute("fill", "#e8487d");
-    frame.setAttribute("stroke", "#c73668");
-    frame.setAttribute("stroke-width", "0.8");
-    frame.setAttribute("stroke-linejoin", "round");
-    g.appendChild(frame);
-
-    const drive = document.createElementNS(NS, "ellipse");
-    drive.setAttribute("cx", "24");
-    drive.setAttribute("cy", "23");
-    drive.setAttribute("rx", "7");
-    drive.setAttribute("ry", "4.5");
-    drive.setAttribute("fill", "#111");
-    g.appendChild(drive);
-
-    const body = document.createElementNS(NS, "path");
-    body.setAttribute(
-      "d",
-      "M26 7 Q33 5 38 9 Q43 13 43 19 Q42 24 36 26 Q28 28 21 25 Q17 21 18 14 Q19 9 26 7 Z"
+    applyCyclistLegMotion(
+      g,
+      typeof wheelPhaseDeg === "number" ? wheelPhaseDeg : 0
     );
-    body.setAttribute("fill", "#ffffff");
-    body.setAttribute("stroke", "#111");
-    body.setAttribute("stroke-width", "0.6");
-    g.appendChild(body);
-
-    const helmet = document.createElementNS(NS, "ellipse");
-    helmet.setAttribute("cx", "37");
-    helmet.setAttribute("cy", "8");
-    helmet.setAttribute("rx", "6");
-    helmet.setAttribute("ry", "4.5");
-    helmet.setAttribute("fill", "#e8487d");
-    helmet.setAttribute("stroke", "#111");
-    helmet.setAttribute("stroke-width", "0.5");
-    helmet.setAttribute("transform", "rotate(-12 37 8)");
-    g.appendChild(helmet);
-
-    const bars = document.createElementNS(NS, "path");
-    bars.setAttribute("d", "M38 12 L46 9 M39 11 L45 8");
-    bars.setAttribute("stroke", "#111");
-    bars.setAttribute("stroke-width", "1.6");
-    bars.setAttribute("stroke-linecap", "round");
-    bars.setAttribute("fill", "none");
-    g.appendChild(bars);
-
-    const seat = document.createElementNS(NS, "path");
-    seat.setAttribute("d", "M22 15 L19 14 Q18 13 19 12 L23 13 Z");
-    seat.setAttribute("fill", "#111");
-    g.appendChild(seat);
-
-    g.appendChild(wheel(rCx, wCy, wr));
-    g.appendChild(wheel(fCx, wCy, wr));
-    g.appendChild(spoke(rCx, wCy, wr * 0.85));
-    g.appendChild(spoke(fCx, wCy, wr * 0.85));
-    const sp2 = spoke(rCx, wCy, wr * 0.85);
-    sp2.setAttribute("transform", "rotate(90 " + rCx + " " + wCy + ")");
-    const sp3 = spoke(fCx, wCy, wr * 0.85);
-    sp3.setAttribute("transform", "rotate(90 " + fCx + " " + wCy + ")");
-    g.appendChild(sp2);
-    g.appendChild(sp3);
-
     syncJetPropulsion(g, ptsArr);
+    if (helmetOpts && helmetOpts.fill) {
+      applyCyclistHelmetColors(g, helmetOpts.fill, helmetOpts.stroke);
+    }
     return g;
   }
 
@@ -1272,6 +1623,7 @@
 
   function drawTrack() {
     trackEl.innerHTML = "";
+    trackEl.setAttribute("viewBox", "0 " + TRACK_VIEW_Y_MIN + " " + TW + " " + TRACK_VIEW_HEIGHT);
     trackRider2 = null;
     const inner = trackInnerWidth();
     const ly = String(TRACK_LINE_Y);
@@ -1317,13 +1669,16 @@
 
     const dist1 = distanceAtFrom(points, t0);
     const cx1 = trackXFromDist(dist1);
-    trackRider = createTrackRiderGroup(cx1, points);
+    trackRider = createTrackRiderGroup(cx1, points, trackWheelPhaseDeg1);
     trackEl.appendChild(trackRider);
 
     if (dualGraph) {
       const dist2 = distanceAtFrom(points2, t0);
       const cx2 = trackXFromDist(dist2);
-      trackRider2 = createTrackRiderGroup(cx2, points2);
+      trackRider2 = createTrackRiderGroup(cx2, points2, trackWheelPhaseDeg2, {
+        fill: RIDER2_HELMET_FILL,
+        stroke: RIDER2_HELMET_STROKE,
+      });
       trackEl.appendChild(trackRider2);
     }
 
@@ -1413,7 +1768,6 @@
       return;
     }
     const { x, y } = chartCoordsFromEvent(ev);
-    const yClamped = Math.min(mt + ph, Math.max(mt, y));
     const inPlot = x >= ml && x <= ml + pw && y >= mt && y <= mt + ph;
     const inAxisStrip =
       x >= ml - AXIS_PICK_W && x < ml && y >= mt && y <= mt + ph;
@@ -1428,7 +1782,8 @@
     const v0Unset = yAxisMode === "velocity" && arr.length === 0 && velocityV0[g] == null;
 
     if (v0Unset && (inPlot || inAxisStrip)) {
-      const vm = yToV(yClamped);
+      const ys = snapChartYToValueGrid(y);
+      const vm = yToV(ys);
       chartClickPreviewCircle.setAttribute("cx", String(tToX(0)));
       chartClickPreviewCircle.setAttribute("cy", String(vToY(vm)));
       chartClickPreviewCircle.setAttribute("stroke", g === 2 ? "#2e7d32" : "#1e6bb8");
@@ -1441,9 +1796,10 @@
       return;
     }
 
-    const xClamped = Math.min(ml + pw, Math.max(ml, x));
+    const snapped = snapChartXYToGrid(x, y);
+    const xClamped = snapped.x;
     const t = xToT(xClamped);
-    const val = yAxisMode === "velocity" ? yToV(y) : yToS(y);
+    const val = yAxisMode === "velocity" ? yToV(snapped.y) : yToS(snapped.y);
 
     if (wouldRejectNewPoint(arr, g, t, val)) {
       hideChartClickPreview();
@@ -1470,8 +1826,8 @@
     if (arr.length > 0) return;
     const { x, y } = chartCoordsFromEvent(ev);
     if (x < ml - AXIS_PICK_W || x > ml || y < mt || y > mt + ph) return;
-    const yClamped = Math.min(mt + ph, Math.max(mt, y));
-    velocityV0[g] = yToV(yClamped);
+    const ys = snapChartYToValueGrid(y);
+    velocityV0[g] = yToV(ys);
     hideChartClickPreview();
     redrawChart();
   }
@@ -1480,19 +1836,20 @@
     if (running) return;
     const { x, y } = chartCoordsFromEvent(ev);
     if (x < ml || x > ml + pw || y < mt || y > mt + ph) return;
-    const t = xToT(x);
+    const snapped = snapChartXYToGrid(x, y);
+    const t = xToT(snapped.x);
     const targetArr = getActiveGraph() === 2 ? points2 : points;
     const g = graphIdFromPointsArr(targetArr);
 
     if (yAxisMode === "velocity" && targetArr.length === 0 && velocityV0[g] == null) {
-      const yClamped = Math.min(mt + ph, Math.max(mt, y));
-      velocityV0[g] = yToV(yClamped);
+      velocityV0[g] = yToV(snapChartYToValueGrid(y));
       hideChartClickPreview();
       redrawChart();
       return;
     }
 
-    const val = yAxisMode === "velocity" ? yToV(y) : yToS(y);
+    const val =
+      yAxisMode === "velocity" ? yToV(snapped.y) : yToS(snapped.y);
 
     if (wouldRejectNewPoint(targetArr, g, t, val)) return;
 
@@ -1524,10 +1881,9 @@
     if (dragVelocityOrigin) {
       dragMoved = true;
       const { y } = chartCoordsFromEvent(ev);
-      const yClamped = Math.min(mt + ph, Math.max(mt, y));
       velocityV0[dragGraph] = Math.min(
         velocityGraphMaxMps(),
-        Math.max(0, yToV(yClamped))
+        Math.max(0, yToV(snapChartYToValueGrid(y)))
       );
       redrawChart();
       return;
@@ -1536,8 +1892,8 @@
     dragMoved = true;
     const arr = dragGraph === 2 ? points2 : points;
     const { x, y } = chartCoordsFromEvent(ev);
-    let t = xToT(Math.min(ml + pw, Math.max(ml, x)));
-    const yClamped = Math.min(mt + ph, Math.max(mt, y));
+    let t = xToT(snapChartXToTimeGrid(x));
+    const yAdj = snapChartYToValueGrid(y);
 
     const p = arr[dragIdx];
     if (!p) return;
@@ -1553,10 +1909,10 @@
 
     if (yAxisMode === "velocity") {
       p.t = t;
-      p.s = yToV(yClamped);
+      p.s = yToV(yAdj);
     } else {
       p.t = t;
-      p.s = yToS(yClamped);
+      p.s = yToS(yAdj);
       if (yAxisMode === "cumulative") {
         const hi = next ? next.s : S_MAX;
         p.s = Math.max(prev.s, Math.min(hi, p.s));
@@ -1689,8 +2045,29 @@
       lastFrame = 0;
     }
     timerEl.textContent = formatTimer(simT);
+    if (dt > 0 && (points.length >= 1 || (dualGraph && points2.length >= 1))) {
+      const tUse = Math.max(0, simT);
+      const tPrev = Math.max(0, simT - dt);
+      const k = (180 / Math.PI) / RIDER_WHEEL_ROLL_RADIUS;
+      if (points.length >= 1) {
+        trackWheelPhaseDeg1 +=
+          (trackXFromDist(distanceAtFrom(points, tUse)) -
+            trackXFromDist(distanceAtFrom(points, tPrev))) *
+          k;
+      }
+      if (dualGraph && points2.length >= 1) {
+        trackWheelPhaseDeg2 +=
+          (trackXFromDist(distanceAtFrom(points2, tUse)) -
+            trackXFromDist(distanceAtFrom(points2, tPrev))) *
+          k;
+      }
+    }
     if (yAxisMode === "velocity") drawTrack();
-    else updateTrackRiderPosition();
+    else {
+      updateTrackRiderPosition();
+      refreshTrackRiderWheelAngles();
+      refreshTrackRiderLegPhases();
+    }
     updateChartTimeIndicator();
     if (running) raf = requestAnimationFrame(tick);
   }
@@ -1706,6 +2083,8 @@
     if (points.length < 1 && !(dualGraph && points2.length >= 1)) return;
     simT = 0;
     lastFrame = 0;
+    trackWheelPhaseDeg1 = 0;
+    trackWheelPhaseDeg2 = 0;
     running = true;
     btnRun.textContent = "Pozastavit";
     timerEl.textContent = formatTimer(0);
@@ -1735,6 +2114,8 @@
     points2.length = 0;
     velocityV0[1] = null;
     velocityV0[2] = null;
+    trackWheelPhaseDeg1 = 0;
+    trackWheelPhaseDeg2 = 0;
   }
 
   btnReset.addEventListener("click", function () {
